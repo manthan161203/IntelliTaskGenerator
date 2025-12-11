@@ -87,9 +87,9 @@ Return ONLY a JSON object with this structure (or error object if validation fai
 
 {
   "success": true,
-  "added": "<summary text of all added tasks>",
-  "updated": "<summary text of all updated tasks>",
-  "deleted": "<summary text of all deleted tasks>",
+  "added": ["<summary text of added task 1>", "<summary text of added task 2>"],
+  "updated": ["<summary text of updated task 1>", "<summary text of updated task 2>"],
+  "deleted": ["<summary text of deleted task 1>", "<summary text of deleted task 2>"],
   "updated_json": {
     <complete updated JSON object here>
   }
@@ -98,9 +98,9 @@ Return ONLY a JSON object with this structure (or error object if validation fai
 Example Response:
 {
   "success": true,
-  "added": "Added 1 task: FE: Add password reset button (5 points, 05:00, Medium priority)",
-  "updated": "Updated 1 task: FE: Implement login page (estimate: 13:00→15:00, storyPoint: 13→20, priority: Medium→High)",
-  "deleted": "Deleted 1 task: BE: Old authentication module (8 points, 08:00)",
+  "added": ["Added 1 task: FE: Add password reset button (5 points, 05:00, Medium priority)"],
+  "updated": ["Updated 1 task: FE: Implement login page (estimate: 13:00→15:00, storyPoint: 13→20, priority: Medium→High)"],
+  "deleted": ["Deleted 1 task: BE: Old authentication module (8 points, 08:00)"],
   "updated_json": {
     "project_name": "...",
     "tasks": [...]

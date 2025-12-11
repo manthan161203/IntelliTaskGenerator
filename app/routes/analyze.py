@@ -53,7 +53,7 @@ async def analyze(
     return JSONResponse(content=result)
 
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 def validate_and_preserve_ids(previous_data: Dict[str, Any], updated_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -103,6 +103,7 @@ def validate_and_preserve_ids(previous_data: Dict[str, Any], updated_data: Dict[
 
 @router.post("/edit-json/")
 async def edit_json(
+    files: Optional[List[UploadFile]] = File(None, description="Upload up to 5 files (PDF, DOCX)"),
     previous_json: str = Form(...),
     query: str = Form(...),
 ):
@@ -111,17 +112,51 @@ async def edit_json(
     # Validate and normalize previous_json (handles both array and dict formats)
     previous_data = validate_json_string(previous_json)
 
+    temp_files = []
+    if files:
+        if len(files) > 5:
+            raise HTTPException(status_code=400, detail="Maximum 5 files allowed.")
+
+        for uploaded in files:
+            temp_path = save_temp_file(uploaded)
+
+            if temp_path.endswith(".docx"):
+                pdf_path = convert_docx_to_pdf(temp_path)
+                temp_files.append(pdf_path)
+            else:
+                temp_files.append(temp_path)
+
     prompt = EDIT_TASK_TEMPLATE \
         .replace("{previous_json}", json.dumps(previous_data, indent=2)) \
         .replace("{query}", query)
 
     response = await genai_service.client.get_task_breakdown(
-        file_paths=[],
+        file_paths=temp_files,
         prompt=prompt
     )
 
     response_text = response.get("text", "") if isinstance(response, dict) else response
-    updated_json = parse_ai_json(response_text)
+    ai_response = parse_ai_json(response_text)
+    
+    # Handle the wrapper structure from prompt_editor
+    if isinstance(ai_response, dict) and "updated_json" in ai_response:
+        inner_data = ai_response["updated_json"]
+        
+        # Normalize inner data if it comes as array
+        if isinstance(inner_data, list):
+            inner_data = {"tasks": inner_data}
+            
+        # Preserve IDs on the inner data
+        inner_data = validate_and_preserve_ids(previous_data, inner_data)
+        
+        # Update the wrapper with processed data
+        ai_response["updated_json"] = inner_data
+        
+        logger.info(f"Returning wrapper with {len(inner_data.get('tasks', []))} tasks")
+        return ai_response
+
+    # Fallback for legacy behavior (if AI returns just the project data)
+    updated_json = ai_response
     
     # Normalize updated_json if it comes as array
     if isinstance(updated_json, list):
