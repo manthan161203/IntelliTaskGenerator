@@ -16,13 +16,19 @@ class GenAIClient:
         """
         Sends the prompt to Google GenAI along with up to 5 file uploads and returns both text output and token usage.
         """
+        logger.info(f"GenAIClient.get_task_breakdown called with {len(file_paths)} files")
+        logger.debug(f"File paths: {file_paths}")
         logger.info("Uploading files to Google GenAI File API")
 
         # --- Upload files ---
         uploaded_files = upload_files_to_genai(self.client, file_paths)
 
-        logger.info(f"Uploaded {len(uploaded_files)} files")
+        logger.info(f"Uploaded {len(uploaded_files)} files to GenAI")
+        for uf in uploaded_files:
+            logger.debug(f"Uploaded file: {uf.name} (URI: {uf.uri})")
 
+        logger.info(f"Sending prompt to model (Length: {len(prompt)} chars)")
+        
         # --- Generate response ---
         response = self.client.models.generate_content(
             model=self.model_name,
@@ -36,6 +42,7 @@ class GenAIClient:
         }
 
         logger.info(f"Token usage: {usage}")
+        logger.info(f"RAW AI RESPONSE:\n{response.text}")
 
         return {
             "text": response.text,

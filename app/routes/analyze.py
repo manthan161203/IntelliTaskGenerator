@@ -2,6 +2,8 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from app.services.genai_service import GenAIService
 from app.utils.logger import logger
+import json
+from typing import Any, Dict, List, Optional
 
 # Import new utils
 from app.utils.file_utils import save_temp_file, convert_docx_to_pdf
@@ -51,9 +53,6 @@ async def analyze(
     )
 
     return JSONResponse(content=result)
-
-import json
-from typing import Any, Dict, List, Optional
 
 def validate_and_preserve_ids(previous_data: Dict[str, Any], updated_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -114,17 +113,22 @@ async def edit_json(
 
     temp_files = []
     if files:
+        logger.info(f"Received {len(files)} files for edit-json")
         if len(files) > 5:
             raise HTTPException(status_code=400, detail="Maximum 5 files allowed.")
 
         for uploaded in files:
-            temp_path = save_temp_file(uploaded)
+            temp_path = await save_temp_file(uploaded)
+            logger.info(f"Saved temp file: {temp_path}")
 
             if temp_path.endswith(".docx"):
-                pdf_path = convert_docx_to_pdf(temp_path)
+                pdf_path = await convert_docx_to_pdf(temp_path)
                 temp_files.append(pdf_path)
+                logger.info(f"Converted to PDF: {pdf_path}")
             else:
                 temp_files.append(temp_path)
+    else:
+        logger.info("No files received for edit-json")
 
     prompt = EDIT_TASK_TEMPLATE \
         .replace("{previous_json}", json.dumps(previous_data, indent=2)) \

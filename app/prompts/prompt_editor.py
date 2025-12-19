@@ -70,7 +70,7 @@ After ANY modification:
 - **storyPoint**: Integer (1, 3, 5, 8, 13, 20, or 40 only)
 - **priority**: String (High, Medium, Low)
 - **startDate, endDate, dueDate**: Always null
-- **category**: String, must include prefix (UI/UX, FE, BE, DevOps)
+
 - **status**: Preserve existing status unless query specifies change
 - **subtasks**: Array of sub-task objects (same field structure)
 
@@ -83,8 +83,9 @@ When updating descriptions that reference technology:
 ---------------------------------------------
 FINAL OUTPUT
 ---------------------------------------------
-Return ONLY a JSON object with this structure (or error object if validation fails):
+Return ONLY a JSON object with this structure:
 
+SUCCESS RESPONSE:
 {
   "success": true,
   "added": ["<summary text of added task 1>", "<summary text of added task 2>"],
@@ -95,7 +96,13 @@ Return ONLY a JSON object with this structure (or error object if validation fai
   }
 }
 
-Example Response:
+ERROR RESPONSE:
+{
+  "success": false,
+  "error": "<error message without Error: prefix>"
+}
+
+Example Success Response:
 {
   "success": true,
   "added": ["Added 1 task: FE: Add password reset button (5 points, 05:00, Medium priority)"],
@@ -105,6 +112,12 @@ Example Response:
     "project_name": "...",
     "tasks": [...]
   }
+}
+
+Example Error Response:
+{
+  "success": false,
+  "error": "The query 'Modify all task's summaries to something meaningful' is too ambiguous. Please provide specific instructions for each task or a clear pattern for modification. I cannot make subjective changes to summaries."
 }
 
 NOTHING else. No markdown, explanation, or extra text.
