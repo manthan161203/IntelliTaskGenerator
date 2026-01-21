@@ -15,6 +15,12 @@ INPUT YOU WILL RECEIVE
    - edit technology references in descriptions
    - restructure tasks or sub-tasks
 
+3. **ATTACHED DOCUMENT CONTENT** (below)
+   - This section contains text from files uploaded by the user.
+   - USE THIS SECTION ONLY IF the query explicitly mentions "document", "file", "attachment", or "uploaded content".
+   - **PROHIBITION:** NEVER return a "No document attached" error unless the user query specifically asks to "update based on the document" or similar.
+   - If the user query does not mention a document, IGNORE this section entirely and proceed using ONLY the `previous_json` and `query`.
+
 ---------------------------------------------
 ABSOLUTE RULES
 ---------------------------------------------
@@ -54,13 +60,12 @@ After ANY modification:
 2. Update parent storyPoint based on the mapping table (match the recalculated originalEstimate)
 3. If a parent has no children after deletion, set originalEstimate to null and storyPoint to null
 
-### 5. Edge Cases and Validation
-- **Deleting a parent task with children:** Return error unless query explicitly says "delete parent and all children" or specifies reassignment of orphaned tasks
-- **Deleting a sub-task:** Recalculate parent's originalEstimate immediately
-- **Adding a task without valid fields:** Return error with missing field details
-- **Invalid estimate values:** Return error if estimate doesn't match the mapping table
-- **Mismatched storyPoint/estimate:** Return error if modification creates inconsistency
-- **Circular parent-child relationships:** Return error if restructuring creates cycles
+### 5. Edge Cases, Validation, and Proactivity
+- **Ambiguous or Broad Queries:** NEVER return an error like "The query is too broad" for requests like "Create DevOps task" or "Add more backend tasks".
+- **PROACTIVE INFERENCE:** If the user provides a high-level instruction, use your professional expertise to determine highly relevant tasks. Generate detailed summaries, HTML descriptions, and appropriate estimates/story points using the rules above.
+- **Missing Fields:** If the query doesn't specify estimates or priorities for new tasks, infer them realistically.
+- **Circular parent-child relationships:** Return error ONLY if restructuring creates logic cycles.
+- **Deleting a parent task with children:** Return error unless explicitly requested.
 
 ### 6. Field Specifications
 - **id**: Omit for new tasks, preserve for existing tasks
@@ -102,6 +107,8 @@ ERROR RESPONSE:
   "error": "<error message without Error: prefix>"
 }
 
+**IMPORTANT:** Do NOT return "No document content was provided" if there is text in the ATTACHED DOCUMENT CONTENT section below. Use that text.
+
 Example Success Response:
 {
   "success": true,
@@ -117,7 +124,7 @@ Example Success Response:
 Example Error Response:
 {
   "success": false,
-  "error": "The query 'Modify all task's summaries to something meaningful' is too ambiguous. Please provide specific instructions for each task or a clear pattern for modification. I cannot make subjective changes to summaries."
+  "error": "Cannot delete task 'BE: Database Migration' because it has 5 sub-tasks. Please specify if you want to delete all sub-tasks or reassign them first."
 }
 
 NOTHING else. No markdown, explanation, or extra text.
@@ -130,4 +137,9 @@ Previous JSON:
 
 User Query:
 {query}
+
+---------------------------------------------
+ATTACHED DOCUMENT CONTENT
+---------------------------------------------
+{document_content}
 """
