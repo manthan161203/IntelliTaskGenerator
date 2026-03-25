@@ -6,3 +6,5 @@ __pycache__/
 *.pyd
 .Python
 project_threads.db
+logs/
+*.log

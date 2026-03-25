@@ -5,9 +5,8 @@ from app.utils.logger import logger
 import json
 from typing import Any, Dict, List, Optional
 
-# Import new utils
 from app.utils.file_utils import (
-    save_temp_file, 
+    save_temp_file,
     convert_docx_to_pdf,
     extract_text_from_pdf,
     extract_text_from_docx,
@@ -16,12 +15,8 @@ from app.utils.file_utils import (
 from app.utils.validation_utils import (
     validate_project_type,
     validate_json_string,
-    parse_tech_stack,
 )
 from app.utils.ai_utils import parse_ai_json
-
-import os
-import json
 
 router = APIRouter()
 genai_service = GenAIService()
@@ -63,45 +58,62 @@ async def analyze(
 def validate_and_preserve_ids(previous_data: Dict[str, Any], updated_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     ID Strategy:
-    - CREATE: id = null
-    - UPDATE: preserve existing id
-    - DELETE: omit from response
+    - If AI preserved the id field, trust it (verify it exists in originals)
+    - Fallback: match by (issueType, summary) key
+    - New tasks (no match): id = null
+    - Deleted tasks: omitted from response
     """
     
-    existing_map = {}
+    # Collect ALL valid IDs from previous data (tasks + subtasks)
+    valid_ids = set()
+    summary_map = {}  # (issueType, summary) -> id
+    subtask_summary_map = {}  # (parent_summary, subtask_summary) -> id
     
-    # Build map from previous data
     for task in previous_data.get("tasks", []):
-        # Use summary as unique key (combine with issueType for better uniqueness)
-        key = (task.get("issueType", ""), task.get("summary", ""))
-        existing_map[key] = task.get("id")
+        tid = task.get("id")
+        if tid is not None:
+            valid_ids.add(tid)
+            key = (task.get("issueType", ""), task.get("summary", ""))
+            summary_map[key] = tid
         
-        # Map subtasks with their parent summary for context
         for subtask in task.get("subTasks", []):
-            sub_key = ("subtask", task.get("summary", ""), subtask.get("summary", ""))
-            existing_map[sub_key] = subtask.get("id")
+            sid = subtask.get("id")
+            if sid is not None:
+                valid_ids.add(sid)
+                sub_key = (task.get("summary", ""), subtask.get("summary", ""))
+                subtask_summary_map[sub_key] = sid
     
     # Apply IDs to updated data
     for task in updated_data.get("tasks", []):
-        key = (task.get("issueType", ""), task.get("summary", ""))
+        ai_id = task.get("id")
         
-        if key in existing_map:
-            task["id"] = existing_map[key]
-            logger.info(f"Preserved ID {existing_map[key]} for task: {task.get('summary')}")
+        # Strategy 1: AI preserved the ID and it's valid
+        if ai_id is not None and ai_id in valid_ids:
+            logger.info(f"AI preserved ID {ai_id} for task: {task.get('summary')}")
         else:
-            task["id"] = None
-            logger.info(f"New task created (id=null): {task.get('summary')}")
+            # Strategy 2: Fallback to summary matching
+            key = (task.get("issueType", ""), task.get("summary", ""))
+            if key in summary_map:
+                task["id"] = summary_map[key]
+                logger.info(f"Summary-matched ID {summary_map[key]} for task: {task.get('summary')}")
+            else:
+                task["id"] = None
+                logger.info(f"New task (id=null): {task.get('summary')}")
         
         # Handle subtasks
         for subtask in task.get("subTasks", []):
-            sub_key = ("subtask", task.get("summary", ""), subtask.get("summary", ""))
+            sub_ai_id = subtask.get("id")
             
-            if sub_key in existing_map:
-                subtask["id"] = existing_map[sub_key]
-                logger.info(f"Preserved ID {existing_map[sub_key]} for subtask: {subtask.get('summary')}")
+            if sub_ai_id is not None and sub_ai_id in valid_ids:
+                logger.info(f"AI preserved ID {sub_ai_id} for subtask: {subtask.get('summary')}")
             else:
-                subtask["id"] = None
-                logger.info(f"New subtask created (id=null): {subtask.get('summary')}")
+                sub_key = (task.get("summary", ""), subtask.get("summary", ""))
+                if sub_key in subtask_summary_map:
+                    subtask["id"] = subtask_summary_map[sub_key]
+                    logger.info(f"Summary-matched ID {subtask_summary_map[sub_key]} for subtask: {subtask.get('summary')}")
+                else:
+                    subtask["id"] = None
+                    logger.info(f"New subtask (id=null): {subtask.get('summary')}")
     
     return updated_data
 

@@ -2,8 +2,8 @@ from app.utils.logger import logger
 
 from app.prompts.prompt_taskonly import TASK_TEMPLATE
 from app.services.genai_client import GenAIClient
-from app.models import ScrumProject, KanbanProject, Project
-import json, re
+from app.models import Project
+import json
 from app.utils.validation_utils import sanitize_priorities
 from app.utils.other_utils import calculate_total_estimate_hours
 from app.utils.ai_utils import clean_ai_response
@@ -61,8 +61,6 @@ class GenAIService:
             logger.error(f"JSON parsing failed: {e} | Raw text: {response_text[:300]}")
             raise ValueError("GenAI returned invalid JSON format.")
 
-        # --- Sanitize + Truncate fields safely ---
-        # parsed = self._sanitize_release_and_sprint_names(parsed)
         # --- Sanitize priorities before schema validation ---
         parsed = sanitize_priorities(parsed)
 

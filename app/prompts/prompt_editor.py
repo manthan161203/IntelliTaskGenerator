@@ -36,11 +36,19 @@ Output ONLY valid JSON. No explanations, markdown, code fences, or commentary.
 - All date fields (startDate, endDate, dueDate) must remain null
 - All other existing fields unchanged unless explicitly modified by the query
 
-### 2. ID Handling
-- Keep existing tasks/subtasks with their current ids intact
-- New tasks/subtasks: omit the id field entirely (system will assign it)
-- Deleted tasks: simply do not include them in the response JSON
-- When restructuring: preserve original ids, update parent/child references only
+### 2b. ID Handling (CRITICAL)
+- **ALWAYS copy the "id" field from the original task into the output.**
+- Every task/subtask in the input has an "id" — you MUST include it in the output unchanged.
+- New tasks/subtasks only: omit the id field entirely (system will assign it).
+- Deleted tasks: simply do not include them in the response JSON.
+- When restructuring: preserve original ids, update parent/child references only.
+- **NEVER set id to null for existing tasks.** If a task exists in previous_json with id=24795, your output must also have id=24795 for that task.
+
+### 2c. NO DUPLICATION (CRITICAL)
+- The output MUST have the EXACT same number of tasks as the input, unless the query explicitly asks to add or delete tasks.
+- Each task from the input must appear EXACTLY ONCE in the output.
+- NEVER duplicate any task or subtask. If the input has 50 tasks, the output must have 50 tasks (unless adding/deleting).
+- If the query says "change X to Y in all tasks", modify each task IN-PLACE. Do not create copies.
 
 ### 3. STRICT ESTIMATION RULES
 Use this mapping ONLY:
@@ -93,12 +101,12 @@ Return ONLY a JSON object with this structure:
 SUCCESS RESPONSE:
 {
   "success": true,
-  "added": ["<summary text of added task 1>", "<summary text of added task 2>"],
-  "updated": ["<summary text of updated task 1>", "<summary text of updated task 2>"],
-  "deleted": ["<summary text of deleted task 1>", "<summary text of deleted task 2>"],
   "updated_json": {
     <complete updated JSON object here>
-  }
+  },
+  "added": ["<summary text of added task 1>"],
+  "updated": ["<summary text of updated task 1>"],
+  "deleted": ["<summary text of deleted task 1>"]
 }
 
 ERROR RESPONSE:
@@ -112,9 +120,6 @@ ERROR RESPONSE:
 Example Success Response:
 {
   "success": true,
-  "added": ["Added 1 task: FE: Add password reset button (5 points, 05:00, Medium priority)"],
-  "updated": ["Updated 1 task: FE: Implement login page (estimate: 13:00→15:00, storyPoint: 13→20, priority: Medium→High)"],
-  "deleted": ["Deleted 1 task: BE: Old authentication module (8 points, 08:00)"],
   "updated_json": {
     "project_name": "...",
     "tasks": [...]

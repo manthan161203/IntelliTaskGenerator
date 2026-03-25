@@ -1,9 +1,7 @@
 from app.config.config import settings
 from app.utils.logger import logger
 from google import genai
-import pathlib
 from app.utils.file_utils import upload_files_to_genai
-from app.utils.ai_utils import log_token_usage
 
 
 class GenAIClient:
@@ -29,10 +27,14 @@ class GenAIClient:
 
         logger.info(f"Sending prompt to model (Length: {len(prompt)} chars)")
         
-        # --- Generate response ---
+        # --- Generate response (force JSON output to prevent markdown wrapping) ---
         response = self.client.models.generate_content(
             model=self.model_name,
-            contents=uploaded_files + [prompt]  # Combine files and prompt
+            contents=uploaded_files + [prompt],
+            config={
+                "response_mime_type": "application/json",
+                "max_output_tokens": 65536,
+            },
         )
 
         usage = {
@@ -43,6 +45,10 @@ class GenAIClient:
 
         logger.info(f"Token usage: {usage}")
         logger.info(f"RAW AI RESPONSE:\n{response.text}")
+
+        # Warn if output may have been truncated
+        if usage["output_tokens"] and usage["output_tokens"] >= 65000:
+            logger.warning(f"AI response may be truncated (output_tokens={usage['output_tokens']}). Response may contain incomplete JSON.")
 
         return {
             "text": response.text,
